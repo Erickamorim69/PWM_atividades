@@ -3,7 +3,7 @@
 #include <zephyr/drivers/gpio.h>
 #include <zephyr/devicetree.h>
 
-#define DELAY 1000
+#define DELAY 2000
 
 #define LEDR_NODE DT_ALIAS(led2)
 #define LEDG_NODE DT_ALIAS(led0)
