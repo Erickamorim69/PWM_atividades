@@ -1,97 +1,49 @@
-#include <zephyr/kernel.h>
-#include <zephyr/device.h>
-#include <zephyr/drivers/gpio.h>
-#include <zephyr/devicetree.h>
+#include <zephyr/kernel.h>             // Funções básicas do Zephyr (ex: k_msleep, k_thread, etc.)
+#include <zephyr/device.h>             // API para obter e utilizar dispositivos do sistema
+#include <zephyr/drivers/gpio.h>       // API para controle de pinos de entrada/saída (GPIO)
+#include <pwm_z42.h>                // Biblioteca personalizada com funções de controle do TPM (Timer/PWM Module)
 
-#define DELAY 1000
+// Define o valor do registrador MOD do TPM para configurar o período do PWM
+#define TPM_MODULE 1000         // Define a frequência do PWM fpwm = (TPM_CLK / (TPM_MODULE * PS))
+// Valores de duty cycle correspondentes a diferentes larguras de pulso
+uint16_t duty_50  = TPM_MODULE*0;       // 50% de duty cycle (meio brilho)
 
-#define LEDR_NODE DT_ALIAS(led2)
-#define LEDG_NODE DT_ALIAS(led0)
-#define LEDB_NODE DT_ALIAS(led1)
+int main(void)
+{
+    // Inicializa o módulo TPM2 com:
+    // - base do TPMx
+    // - fonte de clock PLL/FLL (TPM_CLK)
+    // - valor do registrador MOD
+    // - tipo de clock (TPM_CLK)
+    // - prescaler de 1 a 128 (PS)
+    // - modo de operação EDGE_PWM
+    pwm_tpm_Init(TPM2, TPM_PLLFLL, TPM_MODULE, TPM_CLK, PS_128, EDGE_PWM);
+    pwm_tpm_Init(TPM0, TPM_PLLFLL, TPM_MODULE, TPM_CLK, PS_128, EDGE_PWM);
 
-#if DT_NODE_HAS_STATUS(LEDR_NODE, okay) && \
-    DT_NODE_HAS_STATUS(LEDG_NODE, okay) && \
-    DT_NODE_HAS_STATUS(LEDB_NODE, okay)
+    // Inicializa o canal 0 do TPM2 para gerar sinal PWM na porta GPIOB_18
+    // - modo TPM_PWM_H (nível alto durante o pulso)
+    pwm_tpm_Ch_Init(TPM2, 0, TPM_PWM_H, GPIOB, 18);
+    pwm_tpm_Ch_Init(TPM2, 1, TPM_PWM_H, GPIOB, 19);
+    pwm_tpm_Ch_Init(TPM0, 1, TPM_PWM_H, GPIOD, 1);
 
-static const struct gpio_dt_spec ledr = GPIO_DT_SPEC_GET(LEDR_NODE, gpios);
-static const struct gpio_dt_spec ledg = GPIO_DT_SPEC_GET(LEDG_NODE, gpios);
-static const struct gpio_dt_spec ledb = GPIO_DT_SPEC_GET(LEDB_NODE, gpios);
+    int r=1000, g=1000, b=1000;
+    pwm_tpm_CnV(TPM2,0,r);
+    pwm_tpm_CnV(TPM2,1,g);
+    pwm_tpm_CnV(TPM0,1,b);
+    // Define o valor do duty cycle: nesse caso, duty_100 (LED quase desligado)
+    //pwm_tpm_CnV(TPM2, 0, duty_50);
 
-#else
-#error "LEDs não encontrados"
-#endif
-
-
-typedef enum {PISCA, VERDE, AMARELO, VERMELHO} estado_semaforo;
-
-
-void main(void){
-
-    estado_semaforo estado = PISCA;
-
-    if (!gpio_is_ready_dt(&ledr) ||
-        !gpio_is_ready_dt(&ledg) ||
-        !gpio_is_ready_dt(&ledb)) {
-        printk("Erro nos LEDs\n");
-        return;
+    // Loop infinito
+    for (;;)
+    {
+        r=0;
+        g=700;
+        b=1000;
+        pwm_tpm_CnV(TPM2,0,r);
+        pwm_tpm_CnV(TPM2,1,g);
+        pwm_tpm_CnV(TPM0,1,b);
+        // O programa poderia alterar o duty cycle dinamicamente aqui se desejado
     }
 
-    gpio_pin_configure_dt(&ledr, GPIO_OUTPUT_INACTIVE);
-    gpio_pin_configure_dt(&ledg, GPIO_OUTPUT_INACTIVE);
-    gpio_pin_configure_dt(&ledb, GPIO_OUTPUT_INACTIVE);
-
-    while (1){
-
-        switch (estado){
-            case PISCA:
-
-                gpio_pin_set_dt(&ledg, 1);  // liga verde
-                gpio_pin_set_dt(&ledr, 0);  // apaga vermelho
-                gpio_pin_set_dt(&ledb, 0);  // apaga azul
-
-                printk("PISCA\n");
-                while(1){
-                    gpio_pin_toggle_dt(&ledg);
-                    k_msleep(DELAY);
-                }
-                
-            case VERDE:
-
-                gpio_pin_set_dt(&ledg, 1);  // liga verde
-                gpio_pin_set_dt(&ledr, 0);  // apaga vermelho
-                gpio_pin_set_dt(&ledb, 0);  // apaga azul
-
-                printk("VERDE\n");
-
-                k_msleep(DELAY);
-                estado = AMARELO;
-                break;
-
-
-            case AMARELO:
-
-                gpio_pin_set_dt(&ledg, 1);
-                gpio_pin_set_dt(&ledr, 1);
-                gpio_pin_set_dt(&ledb, 0);
-
-                printk("AMARELO\n");
-
-                k_msleep(DELAY);
-                estado = VERMELHO;
-                break;
-
-
-            case VERMELHO:
-
-                gpio_pin_set_dt(&ledg, 0);
-                gpio_pin_set_dt(&ledr, 1);
-                gpio_pin_set_dt(&ledb, 0);
-
-                printk("VERMELHO\n");
-
-                k_msleep(DELAY);
-                estado = VERDE;
-                break;
-        }
-    }
+    return 0;
 }
