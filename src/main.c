@@ -3,25 +3,15 @@
 #include <zephyr/drivers/gpio.h>       // API para controle de pinos de entrada/saída (GPIO)
 #include <pwm_z42.h>                // Biblioteca personalizada com funções de controle do TPM (Timer/PWM Module)
 
-// Define o valor do registrador MOD do TPM para configurar o período do PWM
-#define TPM_MODULE 1000         // Define a frequência do PWM fpwm = (TPM_CLK / (TPM_MODULE * PS))
-// Valores de duty cycle correspondentes a diferentes larguras de pulso
-uint16_t duty_50  = TPM_MODULE*0;       // 50% de duty cycle (meio brilho)
+#define TPM_MODULE 1000         
+uint16_t duty_50  = TPM_MODULE*0;     
 
 int main(void)
 {
-    // Inicializa o módulo TPM2 com:
-    // - base do TPMx
-    // - fonte de clock PLL/FLL (TPM_CLK)
-    // - valor do registrador MOD
-    // - tipo de clock (TPM_CLK)
-    // - prescaler de 1 a 128 (PS)
-    // - modo de operação EDGE_PWM
+
     pwm_tpm_Init(TPM2, TPM_PLLFLL, TPM_MODULE, TPM_CLK, PS_128, EDGE_PWM);
     pwm_tpm_Init(TPM0, TPM_PLLFLL, TPM_MODULE, TPM_CLK, PS_128, EDGE_PWM);
 
-    // Inicializa o canal 0 do TPM2 para gerar sinal PWM na porta GPIOB_18
-    // - modo TPM_PWM_H (nível alto durante o pulso)
     pwm_tpm_Ch_Init(TPM2, 0, TPM_PWM_H, GPIOB, 18);
     pwm_tpm_Ch_Init(TPM2, 1, TPM_PWM_H, GPIOB, 19);
     pwm_tpm_Ch_Init(TPM0, 1, TPM_PWM_H, GPIOD, 1);
@@ -30,10 +20,7 @@ int main(void)
     pwm_tpm_CnV(TPM2,0,r);
     pwm_tpm_CnV(TPM2,1,g);
     pwm_tpm_CnV(TPM0,1,b);
-    // Define o valor do duty cycle: nesse caso, duty_100 (LED quase desligado)
-    //pwm_tpm_CnV(TPM2, 0, duty_50);
 
-    // Loop infinito
     for (;;)
     {
         r=0;
@@ -42,7 +29,16 @@ int main(void)
         pwm_tpm_CnV(TPM2,0,r);
         pwm_tpm_CnV(TPM2,1,g);
         pwm_tpm_CnV(TPM0,1,b);
-        // O programa poderia alterar o duty cycle dinamicamente aqui se desejado
+        k_msleep(1000);
+        r=1000;
+        g=1000;
+        b=1000;
+        pwm_tpm_CnV(TPM2,0,r);
+        pwm_tpm_CnV(TPM2,1,g);
+        pwm_tpm_CnV(TPM0,1,b);
+
+        k_msleep(1000);
+
     }
 
     return 0;
