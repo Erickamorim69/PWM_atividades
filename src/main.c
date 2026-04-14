@@ -28,13 +28,13 @@ int main(void){
     int vel2=700;
 
     while (1){        
-        gpio_pin_set(porta, 12, 0);
-        gpio_pin_set(portd, 4, 1); 
-        pwm_tpm_CnV(TPM1, 0, vel1);
+        gpio_pin_set(porta, 12, 0); //frente
+        gpio_pin_set(portd, 4, 1); //trás
+        pwm_tpm_CnV(TPM1, 0, vel2); //esquerda
 
-        gpio_pin_set(portb, 2, 0);
-        gpio_pin_set(portb, 3, 1); 
-        pwm_tpm_CnV(TPM1, 1, vel2);
+        gpio_pin_set(portb, 2, 0); //frente
+        gpio_pin_set(portb, 3, 1); //trás
+        pwm_tpm_CnV(TPM1, 1, vel1); //direita
     }
     return 0;
 }
