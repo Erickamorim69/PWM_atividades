@@ -24,8 +24,8 @@ int main(void){
     gpio_pin_configure(porta, 12, GPIO_OUTPUT);// IN3 (PTA12)
     gpio_pin_configure(portd, 4, GPIO_OUTPUT); // IN4 (PTD4)
 
-    int vel1=0;
-    int vel2=0;
+    int vel1=700;
+    int vel2=700;
 
     while (1){        
         gpio_pin_set(porta, 12, 0);
@@ -35,9 +35,6 @@ int main(void){
         gpio_pin_set(portb, 2, 0);
         gpio_pin_set(portb, 3, 1); 
         pwm_tpm_CnV(TPM1, 1, vel2);
-        k_msleep(10);
-        vel1+=1;
-        if (vel1==1000)vel1=0;
     }
     return 0;
 }
