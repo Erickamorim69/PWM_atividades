@@ -1,97 +1,43 @@
 #include <zephyr/kernel.h>
 #include <zephyr/device.h>
 #include <zephyr/drivers/gpio.h>
-#include <zephyr/devicetree.h>
+#include <pwm_z42.h>
 
-#define DELAY 1000
+#define PORTB_NODE DT_NODELABEL(gpiob)
+#define TPM_MODULE 1000
 
-#define LEDR_NODE DT_ALIAS(led2)
-#define LEDG_NODE DT_ALIAS(led0)
-#define LEDB_NODE DT_ALIAS(led1)
-
-#if DT_NODE_HAS_STATUS(LEDR_NODE, okay) && \
-    DT_NODE_HAS_STATUS(LEDG_NODE, okay) && \
-    DT_NODE_HAS_STATUS(LEDB_NODE, okay)
-
-static const struct gpio_dt_spec ledr = GPIO_DT_SPEC_GET(LEDR_NODE, gpios);
-static const struct gpio_dt_spec ledg = GPIO_DT_SPEC_GET(LEDG_NODE, gpios);
-static const struct gpio_dt_spec ledb = GPIO_DT_SPEC_GET(LEDB_NODE, gpios);
-
-#else
-#error "LEDs não encontrados"
-#endif
-
-
-typedef enum {PISCA, VERDE, AMARELO, VERMELHO} estado_semaforo;
-
-
-void main(void){
-
-    estado_semaforo estado = PISCA;
-
-    if (!gpio_is_ready_dt(&ledr) ||
-        !gpio_is_ready_dt(&ledg) ||
-        !gpio_is_ready_dt(&ledb)) {
-        printk("Erro nos LEDs\n");
-        return;
+int main(void){
+    const struct device *portb = DEVICE_DT_GET(PORTB_NODE);
+    const struct device *porta = DEVICE_DT_GET(DT_NODELABEL(gpioa));
+    const struct device *portd = DEVICE_DT_GET(DT_NODELABEL(gpiod));
+    if (!device_is_ready(portb)) {
+        return 0;
     }
 
-    gpio_pin_configure_dt(&ledr, GPIO_OUTPUT_INACTIVE);
-    gpio_pin_configure_dt(&ledg, GPIO_OUTPUT_INACTIVE);
-    gpio_pin_configure_dt(&ledb, GPIO_OUTPUT_INACTIVE);
 
-    while (1){
+    pwm_tpm_Init(TPM1, TPM_PLLFLL, TPM_MODULE, TPM_CLK, PS_128, EDGE_PWM);
+    pwm_tpm_Ch_Init(TPM1, 1, TPM_PWM_H, GPIOB, 1);  // ENB (PTB1)
+    pwm_tpm_Ch_Init(TPM1, 0, TPM_PWM_H, GPIOE, 20); //ENA (PTE20)
 
-        switch (estado){
-            case PISCA:
+    gpio_pin_configure(portb, 2, GPIO_OUTPUT); // IN1 (PTB2)
+    gpio_pin_configure(portb, 3, GPIO_OUTPUT); // IN2 (PTB3)
+    gpio_pin_configure(porta, 12, GPIO_OUTPUT);// IN3 (PTA12)
+    gpio_pin_configure(portd, 4, GPIO_OUTPUT); // IN4 (PTD4)
 
-                gpio_pin_set_dt(&ledg, 1);  // liga verde
-                gpio_pin_set_dt(&ledr, 0);  // apaga vermelho
-                gpio_pin_set_dt(&ledb, 0);  // apaga azul
+    int vel1=0;
+    int vel2=0;
 
-                printk("PISCA\n");
-                while(1){
-                    gpio_pin_toggle_dt(&ledg);
-                    k_msleep(DELAY);
-                }
-                
-            case VERDE:
+    while (1){        
+        gpio_pin_set(porta, 12, 0);
+        gpio_pin_set(portd, 4, 1); 
+        pwm_tpm_CnV(TPM1, 0, vel1);
 
-                gpio_pin_set_dt(&ledg, 1);  // liga verde
-                gpio_pin_set_dt(&ledr, 0);  // apaga vermelho
-                gpio_pin_set_dt(&ledb, 0);  // apaga azul
-
-                printk("VERDE\n");
-
-                k_msleep(DELAY);
-                estado = AMARELO;
-                break;
-
-
-            case AMARELO:
-
-                gpio_pin_set_dt(&ledg, 1);
-                gpio_pin_set_dt(&ledr, 1);
-                gpio_pin_set_dt(&ledb, 0);
-
-                printk("AMARELO\n");
-
-                k_msleep(DELAY);
-                estado = VERMELHO;
-                break;
-
-
-            case VERMELHO:
-
-                gpio_pin_set_dt(&ledg, 0);
-                gpio_pin_set_dt(&ledr, 1);
-                gpio_pin_set_dt(&ledb, 0);
-
-                printk("VERMELHO\n");
-
-                k_msleep(DELAY);
-                estado = VERDE;
-                break;
-        }
+        gpio_pin_set(portb, 2, 0);
+        gpio_pin_set(portb, 3, 1); 
+        pwm_tpm_CnV(TPM1, 1, vel2);
+        k_msleep(10);
+        vel1+=1;
+        if (vel1==1000)vel1=0;
     }
+    return 0;
 }
